@@ -13,7 +13,7 @@ enum UserRole {
   USER
 }
 
-enum Dificulty {
+enum Difficulty {
   EASY 
   MEDIUM 
   HARD
@@ -36,16 +36,16 @@ model Problem {
   id String @id @default(uuid())
   title String
   description String
-  dificulty Dificulty
+  difficulty Difficulty
   tags String[]
   userId String
   examples Json
-  contraints String
+  constraints String
   hints String?
   editorial String?
   
   testcases Json
-  codesnippet Json
+  codeSnippets Json
   referenceSolutions Json
 
   createdAt DateTime @default(now())

@@ -10,9 +10,9 @@ export const createProblem = async (req , res) => {
         difficulty , 
         tags , 
         examples , 
-        contraints , 
+        constraints , 
         testcases , 
-        codesnippet , 
+        codeSnippets , 
         referenceSolutions ,
     } = req.body ;
     
@@ -24,8 +24,8 @@ export const createProblem = async (req , res) => {
     }
     //loop through each reference solution for different laguanges ;
     try {
-        for(const [laguange , solutionCode] of object.entries(referenceSolutions)){
-            const languageId = getJudge0LanguageId(laguange) ;
+        for(const [language , solutionCode] of Object.entries(referenceSolutions)){
+            const languageId = getJudge0LanguageId(language) ;
 
             if(!languageId){
                 return res.status(400).json({ error : `Language ${language} is not supported`})
@@ -47,11 +47,11 @@ export const createProblem = async (req , res) => {
             const results = await pollBatchResults(token) ;
 
             for (let i = 0 ; i < results.lenght ; i++ ) {
-                const result = result[i] ;
+                const result = results[i] ;
                 console.log("result------" , result) ;
 
                 if(result.status.id !== 3){
-                    return res.status(400).json({error : `Testcases ${i+1} failed for language ${laguange}`})
+                    return res.status(400).json({error : `Testcases ${i+1} failed for language ${language}`})
 
                 }
             }
@@ -65,9 +65,9 @@ export const createProblem = async (req , res) => {
                     difficulty ,
                     tags , 
                     examples , 
-                    contraints , 
+                    constraints , 
                     testcases , 
-                    codesnippet , 
+                    codeSnippets , 
                     referenceSolutions , 
                     userId:req.user.id ,
                 }
