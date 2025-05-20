@@ -33,7 +33,7 @@ export const createProblem = async (req , res) => {
 
             const submissions = testcases.map(({input , output}) => ({
                 source_code : solutionCode ,
-                laguange_id : languageId ,
+                language_id : languageId ,
                 stdin : input ,
                 expected_output : output 
             })) 
@@ -46,7 +46,7 @@ export const createProblem = async (req , res) => {
             
             const results = await pollBatchResults(token) ;
 
-            for (let i = 0 ; i < results.lenght ; i++ ) {
+            for (let i = 0 ; i < results.length ; i++ ) {
                 const result = results[i] ;
                 console.log("result------" , result) ;
 
@@ -92,9 +92,61 @@ export const createProblem = async (req , res) => {
 
 
 
-export const getAllProblems = async (req , res) => {} ;
+export const getAllProblems = async (req , res) => {
+    try {
+        const problem = await db.problem.findMany() ;
 
-export const getProblemById = async (req , res) => {} ;
+        if (!problem){
+            return res.status(404).json({
+                error : "No problem Found"
+            }) ;
+        }
+
+        res.status(201).json({
+            success : true ,
+            message : "Message Fetched Successfully",
+            problem
+
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error : "Error While Fetching Problems"
+        }) ;
+        
+    }
+} ;
+
+export const getProblemById = async (req , res) => {
+    const {id} = req.params ;
+    
+    try {
+        const problem = await db.problem.findUnique({
+            where:{
+                id
+            }
+        })
+
+        if(!problem){
+             return res.status(404).json({
+                error : "No problem Found"
+            }) ; 
+        }
+
+         res.status(200).json({
+            success : true ,
+            message : "Message Fetched Successfully",
+            problem
+         })
+
+        
+    } catch (error) {
+         console.log(error);
+        return res.status(500).json({
+            error : "Error While Fetching Problems"
+        }) ;
+    }
+} ;
 
 export const updateProblem = async (req , res) => {} ;
 
