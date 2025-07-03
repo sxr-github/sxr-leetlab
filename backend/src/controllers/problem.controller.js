@@ -32,7 +32,7 @@ export const createProblem = async (req , res) => {
             }
 
             const submissions = testcases.map(({input , output}) => ({
-                source_code : solutionCode ,
+                sourceCode : solutionCode ,
                 language_id : languageId ,
                 stdin : input ,
                 expected_output : output 
@@ -218,4 +218,32 @@ export const  deleteProblem = async (req ,res) => {
 
 } ;
 
-export const getAllProblemSlovedByUser = async (req , res) => {} ;
+export const getAllProblemSlovedByUser = async (req , res) => {
+    try {
+        const problems = await db.problem.findMany({
+            where :{
+                solvedBY:{
+                    some:{
+                        userId : req.user.id 
+                    }
+                }
+            },
+            include :{
+                solvedBY:{  
+                    where:{
+                        userId : req.user.id 
+                    }
+                }
+
+            }
+            
+        })
+        res.status(200).json({
+            success : true ,
+            message : "Problem Fetched successfully"
+        })
+    } catch (error) {
+        console.error("Error fetching pronlems :" , error) ;
+        res.status(500).json ({error :"Failed To Fetch Problems"} )
+    }
+} ;

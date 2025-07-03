@@ -1,4 +1,8 @@
-import { pollBatchResults, submitBatch } from "../libs/judge0.lib.js";
+import { getLanguageName, 
+         pollBatchResults, 
+         submitBatch } from "../libs/judge0.lib.js";
+import {db} from "../libs/db.js"
+
 
 export const executeCode = async (req , res) => {
     try {
@@ -18,6 +22,7 @@ export const executeCode = async (req , res) => {
         }
 
         // Preparing each testcases for judge0 batch submissions 
+       
         const submissions = stdin.map((input) =>({
             source_code , 
             language_id ,
@@ -27,21 +32,131 @@ export const executeCode = async (req , res) => {
         })) ;
 
         // Sending this submission batch to Judge0 
-        const submitResponse = await submitBatch()
+        
+        const submitResponse = await submitBatch(submissions)
 
         const token =submitResponse.map((res) => res.token) ;
 
         // Poll judge0 for results of all submitted test cases
-        const result = await  pollBatchResults(token) ;
+        const results = await  pollBatchResults(token) ;
 
         console.log('Result ------------>')
-        console.log(result)
+        console.log(results)
 
+        // Analyze the test cases
+        let allPassed = true ;
+        const detailedResults = results.map((result ,i)=> {
+        const stdout = result.stdout?.trim() ;
+        const expected_output = expected_outputs[i]?.trim();
+        const passed = stdout === expected_output ;   
+
+        if (!passed){
+            allPassed = false 
+        } ;
+
+        return{
+            testCase : i + 1 ,
+            passed,
+            stdout,
+            expected : expected_output,
+            stderr : result.stderr || null ,      
+            compileOutput : result.compileOutput || null ,
+            status : result.status.description  ,      
+            memory : result.memory ? `${result.memory} KB`: {undefined},      
+            time : result.time ? `${result.time} s`:  {undefined} ,
+
+        }
+
+        
+        
+        
+        // console.log(`Testcase #${i+1}`) ;
+        // console.log(`Input ${stdin[i]}`) ;
+        // console.log(`Expected Output for testcase ${expected_output}`) ;
+        // console.log(`Actual output ${stdout}`) ;
+        // console.log(`Matched : ${passed}`) ;
+    })
+   
+    console.log(detailedResults);
+
+    
+    // Store submission summary 
+    
+    const submission = await db.submission.create({
+        data : {
+            userId,
+            problemId,
+            sourceCode : source_code,
+            language : getLanguageName(language_id),
+            stdin : stdin.join("\n"),
+            stdout : JSON.stringify(detailedResults.map((r) => r.stdout)),
+            stderr : detailedResults.some((r) => r.stderr)
+            ?JSON.stringify(detailedResults.map((r) => r.stderr))
+            :null,
+            compileOutput : detailedResults.some((r) => r.compile_output)
+            ?JSON.stringify(detailedResults.map((r) => r.compile_output))
+            :null,
+            status : allPassed ? "Accepted" : "Wrong answer",
+            memory : detailedResults.some((r) => r.memory)
+            ?JSON.stringify(detailedResults.map((r) => r.memory))
+            :null,
+            time : detailedResults.some((r) => r.time)
+            ?JSON.stringify(detailedResults.map((r) => r.time))
+            :null,
+        }
+    }) ;
+
+
+    // if all passed marked the problem as solved for the current user
+
+    if (allPassed){
+    await db.problemSolved.upsert({
+        where : {
+            userId_problemId : {
+                userId , problemId
+            }
+        },
+        update : {},
+        create : {
+            userId , problemId
+        }
+    })
+}
+    // Save individual testcases result using detailedresult
+
+    const testCaseResults = detailedResults.map((result) => ({
+      submissionId: submission.id,
+      testCase: result.testCase,
+      passed: result.passed,
+      stdout: result.stdout,
+      expected: result.expected,
+      stderr: result.stderr,
+      compileOutput: result.compile_output,
+      status: result.status,
+      memory: result.memory,
+      time: result.time,
+    }));
+
+    await db.testCaseResult.createMany({
+        data : testCaseResults,
+    });
+
+    const submissionWithTesCase = await db.submission.findUnique({
+        where : {
+            id : submission.id ,
+        },
+        include : {
+            testCases: true 
+        },
+    }) ;
         res.status(200).json({
-            message : "Code Executedd !"
-        })
+            success : true ,
+            message : "Code Executed Successfully !",
+            submission : submissionWithTesCase
+        }) ;
 
     } catch (error) {
-        
+        console.error("Error Executing Code: ",error.message);
+        res.status(500).json({error:"Failed To Execute Code"})
     }
-}
+};
