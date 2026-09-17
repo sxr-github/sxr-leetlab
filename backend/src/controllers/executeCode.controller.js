@@ -6,26 +6,29 @@ import {db} from "../libs/db.js"
 
 export const executeCode = async (req , res) => {
     try {
-        const{source_code , language_id , stdin , expected_outputs , problemId} = req.body ;
+        const { source_code, language_id, problemId } = req.body;
 
         const userId = req.user.id ;
-
-        // Validating test cases 
-
-        if (
-            !Array.isArray(stdin) ||
-            stdin.length === 0 ||
-            !Array.isArray(expected_outputs) ||
-            expected_outputs.length !== stdin.length
-        ){
-            return res.status(400).json({error : "Invalid or Missing Test Cases"})
+        const numericLanguageId = Number(language_id);
+        if (typeof source_code !== "string" || !source_code.trim() || source_code.length > 50_000 || !problemId || !getLanguageName(numericLanguageId) || getLanguageName(numericLanguageId) === "Unknown") {
+            return res.status(400).json({ error: "Provide a supported language, problem id, and source code up to 50,000 characters." });
         }
+
+        // Test inputs and expected results must come from the persisted problem,
+        // never from the browser. Otherwise a client could submit its own answer key.
+        const problem = await db.problem.findUnique({ where: { id: problemId }, select: { testcases: true } });
+        if (!problem) return res.status(404).json({ error: "Problem not found" });
+        if (!Array.isArray(problem.testcases) || !problem.testcases.length || !problem.testcases.every((test) => typeof test?.input === "string" && typeof test?.output === "string")) {
+            return res.status(422).json({ error: "This problem has invalid test cases." });
+        }
+        const stdin = problem.testcases.map((test) => test.input);
+        const expected_outputs = problem.testcases.map((test) => test.output);
 
         // Preparing each testcases for judge0 batch submissions 
        
         const submissions = stdin.map((input) =>({
             source_code , 
-            language_id ,
+            language_id: numericLanguageId,
             stdin:input ,
             base64_encoded : false ,
             wait : false
@@ -39,9 +42,6 @@ export const executeCode = async (req , res) => {
 
         // Poll judge0 for results of all submitted test cases
         const results = await  pollBatchResults(token) ;
-
-        console.log('Result ------------>')
-        console.log(results)
 
         // Analyze the test cases
         let allPassed = true ;
@@ -60,10 +60,10 @@ export const executeCode = async (req , res) => {
             stdout,
             expected : expected_output,
             stderr : result.stderr || null ,      
-            compileOutput : result.compileOutput || null ,
-            status : result.status.description  ,      
-            memory : result.memory ? `${result.memory} KB`: {undefined},      
-            time : result.time ? `${result.time} s`:  {undefined} ,
+            compileOutput : result.compile_output || null ,
+            status : result.status?.description || "Unknown",      
+            memory : result.memory ? `${result.memory} KB`: null,
+            time : result.time ? `${result.time} s`: null,
 
         }
 
@@ -77,24 +77,23 @@ export const executeCode = async (req , res) => {
         // console.log(`Matched : ${passed}`) ;
     })
    
-    console.log(detailedResults);
-
     
     // Store submission summary 
     
-    const submission = await db.submission.create({
-        data : {
+    const submissionWithTesCase = await db.$transaction(async (tx) => {
+      const submission = await tx.submission.create({
+        data: {
             userId,
             problemId,
             sourceCode : source_code,
-            language : getLanguageName(language_id),
+            language : getLanguageName(numericLanguageId),
             stdin : stdin.join("\n"),
             stdout : JSON.stringify(detailedResults.map((r) => r.stdout)),
             stderr : detailedResults.some((r) => r.stderr)
             ?JSON.stringify(detailedResults.map((r) => r.stderr))
             :null,
-            compileOutput : detailedResults.some((r) => r.compile_output)
-            ?JSON.stringify(detailedResults.map((r) => r.compile_output))
+            compileOutput : detailedResults.some((r) => r.compileOutput)
+            ?JSON.stringify(detailedResults.map((r) => r.compileOutput))
             :null,
             status : allPassed ? "Accepted" : "Wrong answer",
             memory : detailedResults.some((r) => r.memory)
@@ -103,14 +102,14 @@ export const executeCode = async (req , res) => {
             time : detailedResults.some((r) => r.time)
             ?JSON.stringify(detailedResults.map((r) => r.time))
             :null,
-        }
-    }) ;
+        },
+      });
 
 
     // if all passed marked the problem as solved for the current user
 
-    if (allPassed){
-    await db.problemSolved.upsert({
+      if (allPassed) {
+        await tx.problemSolved.upsert({
         where : {
             userId_problemId : {
                 userId , problemId
@@ -120,8 +119,8 @@ export const executeCode = async (req , res) => {
         create : {
             userId , problemId
         }
-    })
-}
+        });
+      }
     // Save individual testcases result using detailedresult
 
     const testCaseResults = detailedResults.map((result) => ({
@@ -131,24 +130,25 @@ export const executeCode = async (req , res) => {
       stdout: result.stdout,
       expected: result.expected,
       stderr: result.stderr,
-      compileOutput: result.compile_output,
+      compileOutput: result.compileOutput,
       status: result.status,
       memory: result.memory,
       time: result.time,
     }));
 
-    await db.testCaseResult.createMany({
+      await tx.testCaseResult.createMany({
         data : testCaseResults,
-    });
+      });
 
-    const submissionWithTesCase = await db.submission.findUnique({
+      return tx.submission.findUnique({
         where : {
             id : submission.id ,
         },
         include : {
             testCases: true 
         },
-    }) ;
+      });
+    });
         res.status(200).json({
             success : true ,
             message : "Code Executed Successfully !",
@@ -156,7 +156,8 @@ export const executeCode = async (req , res) => {
         }) ;
 
     } catch (error) {
-        console.error("Error Executing Code: ",error.message);
-        res.status(500).json({error:"Failed To Execute Code"})
+        console.error("Error Executing Code: ", error.message);
+        const isJudgeError = error.isAxiosError || /execution|Judge0|timed out/i.test(error.message);
+        res.status(isJudgeError ? 503 : 500).json({ error: isJudgeError ? "Code execution service is unavailable. Please try again." : "Failed to execute code" });
     }
 };

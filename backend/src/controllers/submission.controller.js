@@ -1,10 +1,14 @@
+import { db } from "../libs/db.js";
+
 export const getAllSubmission = async(req ,res ) => {
     try {
         const userId = req.user.id ;
         const submissions = await db.submission.findMany({
             where:{
                 userId :userId,
-            }
+            },
+            include: { problem: { select: { id: true, title: true, difficulty: true } }, testCases: true },
+            orderBy: { createdAt: "desc" },
         })
         
         res.status(200).json({
@@ -27,7 +31,9 @@ export const getSubmissionForProblem = async(req ,res) => {
             where:{
                 userId : userId,
                 problemId : problemId,
-            }
+            },
+            include: { testCases: true },
+            orderBy: { createdAt: "desc" },
         })
         
         res.status(200).json({

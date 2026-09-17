@@ -1,4 +1,4 @@
-import experss from "express";
+import express from "express";
 import { authmiddleware } from "../middleware/auth.middleware.js";
 import { addProblemToPlaylist, 
     createPlayList, 
@@ -7,7 +7,7 @@ import { addProblemToPlaylist,
     getPlayListDetails, 
     removeProblemFromPlaylist } from "../controllers/playlist.controller.js";
 
-const playlistRoutes = experss.Router() ;
+const playlistRoutes = express.Router() ;
 
 playlistRoutes.get("/" , authmiddleware , getPlayAllListDetails)
 

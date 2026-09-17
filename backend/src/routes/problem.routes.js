@@ -1,6 +1,6 @@
 import express from "express" ;
 import { authmiddleware, checkAdmin } from "../middleware/auth.middleware.js";
-import { createProblem, deleteProblem, getAllProblems, getAllProblemSlovedByUser, getProblemById, updateProblem } from "../controllers/problem.controller.js";
+import { createProblem, deleteProblem, getAllProblems, getAllProblemSlovedByUser, getProblemById, getSimilarProblems, updateProblem } from "../controllers/problem.controller.js";
 
 
 const problemRoutes = express.Router()
@@ -10,6 +10,7 @@ problemRoutes.post("/create-problem" , authmiddleware , checkAdmin , createProbl
 problemRoutes.get("/get-all-problem" , authmiddleware , getAllProblems) ;
 
 problemRoutes.get("/get-problem/:id" , authmiddleware , getProblemById) ;
+problemRoutes.get("/:id/similar" , authmiddleware , getSimilarProblems) ;
 
 problemRoutes.put("/update-problem/:id" , authmiddleware , checkAdmin , updateProblem ) ;
 

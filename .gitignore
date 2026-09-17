@@ -1,0 +1,22 @@
+# Secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+
+# Logs and local runtime files
+*.log
+*.pid
+
+# Dependencies and build output
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+frontend/dist/
+
+# Prisma generated native artifacts
+backend/src/generated/prisma/*.tmp*
+
+# Editor settings
+.vscode/*
+!.vscode/extensions.json
+.idea/

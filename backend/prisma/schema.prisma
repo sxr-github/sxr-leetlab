@@ -19,9 +19,15 @@ enum Difficulty {
   HARD
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
+
 model User {
   id String  @id @default(uuid())
   name String?
+  username String @unique
   email String @unique
   image String?
   role UserRole @default(USER)
@@ -33,6 +39,29 @@ model User {
   submission Submission []
   problemSolved ProblemSolved []
   playlists Playlist[]
+  friendRequestsSent Friendship[] @relation("FriendRequestsSent")
+  friendRequestsReceived Friendship[] @relation("FriendRequestsReceived")
+  threads Thread[]
+  comments Comment[]
+  createdRooms Room[] @relation("RoomCreator")
+  roomMemberships RoomMember[]
+  roomMessages RoomMessage[]
+}
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester User @relation("FriendRequestsSent", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("FriendRequestsReceived", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
 }
 
 model Problem {
@@ -60,8 +89,81 @@ model Problem {
   submission Submission []
   solvedBY ProblemSolved []
   problemsPlaylists ProblemInPlaylist[]
+  threads Thread[]
+  rooms Room[]
   
 
+}
+
+model Thread {
+  id        String   @id @default(uuid())
+  problemId String
+  userId    String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments Comment[]
+
+  @@index([problemId, createdAt])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  threadId  String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+model Room {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdBy   String
+  problemId   String?
+  createdAt   DateTime @default(now())
+
+  creator User @relation("RoomCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  problem Problem? @relation(fields: [problemId], references: [id], onDelete: SetNull)
+  members RoomMember[]
+  messages RoomMessage[]
+
+  @@index([createdBy])
+  @@index([problemId])
+}
+
+model RoomMember {
+  id       String   @id @default(uuid())
+  roomId   String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+model RoomMessage {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
 }
 
 model Submission {

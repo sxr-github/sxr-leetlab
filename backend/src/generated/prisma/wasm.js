@@ -128,6 +128,15 @@ exports.Prisma.UserScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.FriendshipScalarFieldEnum = {
+  id: 'id',
+  requesterId: 'requesterId',
+  addresseeId: 'addresseeId',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.ProblemScalarFieldEnum = {
   id: 'id',
   title: 'title',
@@ -187,6 +196,23 @@ exports.Prisma.ProblemSolvedScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.PlaylistScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  userId: 'userId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ProblemInPlaylistScalarFieldEnum = {
+  id: 'id',
+  playListId: 'playListId',
+  problemId: 'problemId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -216,6 +242,11 @@ exports.UserRole = exports.$Enums.UserRole = {
   USER: 'USER'
 };
 
+exports.FriendshipStatus = exports.$Enums.FriendshipStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED'
+};
+
 exports.Difficulty = exports.$Enums.Difficulty = {
   EASY: 'EASY',
   MEDIUM: 'MEDIUM',
@@ -224,10 +255,13 @@ exports.Difficulty = exports.$Enums.Difficulty = {
 
 exports.Prisma.ModelName = {
   User: 'User',
+  Friendship: 'Friendship',
   Problem: 'Problem',
   Submission: 'Submission',
   TestCaseResult: 'TestCaseResult',
-  ProblemSolved: 'ProblemSolved'
+  ProblemSolved: 'ProblemSolved',
+  Playlist: 'Playlist',
+  ProblemInPlaylist: 'ProblemInPlaylist'
 };
 
 /**
